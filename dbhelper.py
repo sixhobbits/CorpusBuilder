@@ -6,72 +6,87 @@
 # version (cough) will use a proper ORM                                      #
 ##############################################################################
 
+# standard imports
 import datetime
 import sqlite3
+
+# local imports
+from article import Article
+from publisher import Publisher
 
 def log(message):
     print(message)
 
 class DBHelper:
-    def __init__(self, dbname="corpus.sqlite"):
+    def __init__(self, dbname="corpus.sqlite", lts5_path="./fts5"):
+        # load the fts5 extension
         self.dbname = dbname
+        self.lts5_path = lts5_path
+        self.conn = self._load_fts5()
 
-    def get_cursor(self):
+    def _load_fts5(self):
         conn = sqlite3.connect(self.dbname)
-        cursor = conn.cursor()
-        return cursor
+        conn.enable_load_extension(True)
+        conn.load_extension(self.lts5_path)
+        conn.enable_load_extension(False)
+        return conn
 
     def execute_query(self, query, query_args=None, commit=False):
         """Executes the SQL query 'query'. Commits the connection
            if the commit flag is set"""
         try:
-            connection = sqlite3.connect(self.dbname)
-            cursor = connection.cursor()
+            cursor = self.conn.cursor()
             if query_args:
-                log(query)
-                log(query_args)
-                log("!")
                 cursor.execute(query, query_args)
             else:
                 cursor.execute(query)
             if commit:
-                connection.commit()
-            return cursor
+                self.conn.commit()
+            return cursor.fetchall()
         except Exception as e:
             log("Exception occured while executing Query: {}".format(query))
             log(e)
             return False
-        finally:
-            connection.close()
+#        finally:
+#            connection.close()
         
     def setup(self):
         """Creates the tables that we need for our corpus"""
         create_publishers_table_query = "CREATE TABLE IF NOT EXISTS publishers (name text, key text, url text)"
-        create_articles_table_query = "CREATE TABLE IF NOT EXISTS articles (publisher_id INTEGER, url TEXT, retrieved_date DATETIME, title TEXT, plaintext TEXT)"
+        create_articles_table_query = "CREATE TABLE IF NOT EXISTS articles (publisher_id INTEGER, url TEXT, retrieved_date DATETIME, title TEXT, plaintext TEXT, html TEXT)"
+        create_virtual_table_query = "CREATE VIRTUAL TABLE IF NOT EXISTS search USING fts5(plaintext, content='articles', content_rowid='rowid', tokenize='porter')"
+        create_trigger_query_insert = "CREATE TRIGGER articles_ai AFTER INSERT ON articles BEGIN INSERT INTO search(plaintext) VALUES (new.plaintext); END;"
+        create_trigger_query_delete = "CREATE TRIGGER articles_ad AFTER DELETE ON articles BEGIN INSERT INTO search(search, plaintext) VALUES('delete', old.plaintext); END;"
+        create_trigger_query_update = "CREATE TRIGGER articles_au AFTER UPDATE ON articles BEGIN INSERT INTO search(search, plaintext) VALUES('delete', old.plaintext); INSERT INTO search(plaintext) VALUES (new.plaintext); END;"
         self.execute_query(create_publishers_table_query, commit=True)
         self.execute_query(create_articles_table_query, commit=True)
+        self.execute_query(create_virtual_table_query, commit=True)
+        self.execute_query(create_trigger_query_insert, commit=True)
+        self.execute_query(create_trigger_query_delete, commit=True)
+        self.execute_query(create_trigger_query_update, commit=True)
         return True
 
-    def add_article(self, publisher_id, url, plaintext, title='', retrieved_date=None):
+    def add_article(self, article):
         """Adds an article to the database. Retrieved data defaults 
            to now if not specified"""
-        add_article_query = "INSERT INTO articles VALUES (?, '?', '?', '?', '?')"
-        if not retrieved_date:
-            retrieved_date = datetime.datetime.utcnow()
-        args = (publisher_id, url, plaintext, title, retrieved_date)
+        add_article_query = "INSERT INTO articles (publisher_id, url, title, plaintext, html, retrieved_date) VALUES (?, ?, ?, ?, ?, ?)"
+        if not article.retrieved_date:
+            article.retrieved_date = datetime.datetime.utcnow()
+        args = (article.publisher_id, article.url, article.title, article.plaintext, article.html, article.retrieved_date)
         self.execute_query(add_article_query, args, commit=True)
         return True
      
-    def add_publisher(self, name, key, url):
+    def add_publisher(self, publisher):
         add_publisher_query = "INSERT INTO publishers VALUES (?, ?, ?)"
-        args = (name, key, url)
+        args = (publisher.name, publisher.key, publisher.url)
         self.execute_query(add_publisher_query, args, commit=True)
         return True
 
     def get_publishers(self):
-        query = "SELECT * FROM publishers"
-        r = self.execute(query)
-        return r.fetchall()
+        query = "SELECT ROWID, url FROM publishers"
+        res = self.execute_query(query)
+        publishers = [Publisher(r[1], r[0]) for r in res]
+        return publishers
 
 
     
