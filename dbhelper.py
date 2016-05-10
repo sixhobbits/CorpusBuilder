@@ -27,7 +27,7 @@ class DBHelper:
     def _load_fts5(self):
         conn = sqlite3.connect(self.dbname)
         conn.enable_load_extension(True)
-        conn.load_extension(self.lts5_path)
+        # conn.load_extension(self.lts5_path)
         conn.enable_load_extension(False)
         return conn
 
@@ -37,6 +37,8 @@ class DBHelper:
         try:
             cursor = self.conn.cursor()
             if query_args:
+                if type(query_args) != tuple:
+                    query_args = (query_args,)
                 cursor.execute(query, query_args)
             else:
                 cursor.execute(query)
@@ -88,11 +90,13 @@ class DBHelper:
         publishers = [Publisher(r[1], r[0]) for r in res]
         return publishers
 
+    def kwic(self, searchterm):
+        print(searchterm)
+        query = "SELECT highlight(search, 0, '<b>','</b>') from search where search match (?)"
+        res = self.execute_query(query, searchterm)
+        return res
 
-    
-        
-
-        
-
-    
-
+    def slowkwic(self, searchterm):
+        query = "SELECT count(*) from articles where plaintext like '%south%'"
+        res = self.execute_query(query)
+        return res
