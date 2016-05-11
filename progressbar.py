@@ -20,14 +20,6 @@ def convert_seconds(num_seconds):
     except OverflowError as e:
         return ("%dd %dh %dm %ds" % (0, 0, 0, 0))
 
-def run_demo():
-    """ create a ProgressBar and run """
-    pb = ProgressBar("cyan")
-    data = range(30,56)
-    for i,v in enumerate(data):
-        time.sleep(0.5)
-        pb.print_progress(i, len(data), v)
-
 class ProgressBar:
 
     def __init__(self, colour="green"):

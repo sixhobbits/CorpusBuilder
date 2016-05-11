@@ -23,6 +23,7 @@ class CorpusBuilder:
     def __init__(self, dbname):
         self.db = DBHelper(dbname)
         self.db.setup()
+        self.dbname = dbname
 
     def first_run(self):
         self.add_publishers(config.publishers_file)
@@ -40,15 +41,17 @@ class CorpusBuilder:
                    continue
         return True
 
+    def process_article(self, a, publisher):
+        db = DBHelper(self.dbname)
+        article = Article(publisher.id, a.url, a.title, a.text, a.html)
+        db.add_article(article)
+
     def fetch_all_news(self):
-        nf = NewsFetcher(show_progress=True)
+        nf = NewsFetcher()
         publishers = self.db.get_publishers()
         for publisher in publishers:
             log("Fetching news from {}".format(publisher.url))
-            article_generator = nf.fetch_news(publisher)
-            for article in article_generator:
-                self.db.add_article(article)
-
+            nf.fetch_news(publisher, self)
         return True
          
             
