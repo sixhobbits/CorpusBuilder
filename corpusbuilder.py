@@ -21,11 +21,11 @@ def log(message):
 
 class CorpusBuilder:
     def __init__(self, dbname):
-        self.db = DBHelper(dbname)
-        self.db.setup()
+        self.db = DBHelper(dbname, fts5_path=config.fts5_path)
         self.dbname = dbname
 
     def first_run(self):
+        self.db.setup()
         self.add_publishers(config.publishers_file)
 
     def add_publishers(self, csv_file):
@@ -44,7 +44,7 @@ class CorpusBuilder:
     def process_article(self, a, publisher):
         db = DBHelper(self.dbname)
         article = Article(publisher.id, a.url, a.title, a.text, a.html)
-        db.add_article(article)
+        db.add_article_with_retry(article)
 
     def fetch_all_news(self):
         nf = NewsFetcher()

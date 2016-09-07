@@ -18,16 +18,16 @@ def log(message):
     print(message)
 
 class DBHelper:
-    def __init__(self, dbname="corpus.sqlite", lts5_path="./fts5"):
+    def __init__(self, dbname="corpus.sqlite", fts5_path="./fts5"):
         # load the fts5 extension
         self.dbname = dbname
-        self.lts5_path = lts5_path
+        self.fts5_path = fts5_path
         self.conn = self._load_fts5()
 
     def _load_fts5(self):
         conn = sqlite3.connect(self.dbname)
         conn.enable_load_extension(True)
-        # conn.load_extension(self.lts5_path)
+        conn.load_extension(self.fts5_path)
         conn.enable_load_extension(False)
         return conn
 
@@ -77,6 +77,15 @@ class DBHelper:
         args = (article.publisher_id, article.url, article.title, article.plaintext, article.html, article.retrieved_date)
         self.execute_query(add_article_query, args, commit=True)
         return True
+
+    def add_article_with_retry(self, article):
+        for t in (0, 1, 1, 3, 5, 8):
+            try:
+                return self.add_article(article)
+            except Exception as e:
+                log(e)
+                time.sleep(t)
+        return None
      
     def add_publisher(self, publisher):
         add_publisher_query = "INSERT INTO publishers VALUES (?, ?, ?)"

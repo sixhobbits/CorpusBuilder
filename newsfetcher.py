@@ -3,9 +3,12 @@
 # 
 
 # standard imports
+import inspect
+import time
+
+from datetime import datetime
 from queue import Queue
 from threading import Thread
-import time
 
 # third party imports
 import newspaper
@@ -15,10 +18,11 @@ from article import Article
 from progressbar import ProgressBar
 
 def log(message):
-    print(message)
+    caller = inspect.stack()[1][3]
+    print("[{}]: {}, {}".format(datetime.utcnow(), caller, message))
 
 class NewsFetcher:
-    def __init__(self, num_threads=20):
+    def __init__(self, num_threads=4):
         self.tasks = Queue()
         self.initial_task_count = 0
         self.failures = Queue()
@@ -27,15 +31,22 @@ class NewsFetcher:
         self.publisher = None
         self.processor = None
 
-    def progress(self):
+    def _progress(self):
+        progress = self.initial_task_count - self.tasks.qsize()
+        failed = self.failures.qsize()
         while not self.tasks.empty():
             progress = self.initial_task_count - self.tasks.qsize()
             failed = "failed: {}".format(self.failures.qsize())
-            self.pb.print_progress(progress, self.initial_task_count, failed)
+            # self.pb.print_progress(progress, self.initial_task_count, failed)
             time.sleep(1)
-        self.pb.print_progress(progress, self.initial_task_count, failed)
+        # self.pb.print_progress(progress, self.initial_task_count, failed)
         print("")
 
+    def progress(self):
+        try:
+            self._progress()
+        except Exception as e:
+            log(e)
 
     def work(self, progress=False):
         """Get non-downloaded and non-parsed Newspaper articles
@@ -43,13 +54,19 @@ class NewsFetcher:
         """
         while not self.tasks.empty():
             a = self.tasks.get()
-            a.download()
-            # Sometimes download fails silently
-            if not a.is_downloaded:
+            try:
+                a.download()
+                # Sometimes download fails silently
+                if not a.is_downloaded:
+                    self.failures.put(a)
+                    continue
+                a.parse()
+            except Exception as e:
+                log(e)
                 self.failures.put(a)
                 continue
-            a.parse()
             self.processor.process_article(a, self.publisher)
+
 
     def fetch_news(self, publisher, ap):
         """Download and Parse all available articles for a given publisher
@@ -68,4 +85,5 @@ class NewsFetcher:
         logger.start()
         [t.join() for t in workers]
         logger.join()
+
 

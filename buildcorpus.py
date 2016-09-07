@@ -1,8 +1,8 @@
 from corpusbuilder import CorpusBuilder
-
+import config
 def main():
-    cb = CorpusBuilder("test.sqlite")
-    cb.first_run()
+    cb = CorpusBuilder(config.dbpath)
+    # cb.first_run()
     cb.fetch_all_news()
    
 
