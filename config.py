@@ -7,4 +7,4 @@ publishers_file = "publishers.csv"
 fts5_path = "/home/rp/git/corpusbuilder/fts5"
 
 # Database path
-dbpath = "/home/rp/git/corpusbuilder/test.sqlite"
+dbpath = "/home/rp/git/corpusbuilder/fincorpus.sqlite"

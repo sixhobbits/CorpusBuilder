@@ -22,7 +22,7 @@ def log(message):
     print("[{}]: {}, {}".format(datetime.utcnow(), caller, message))
 
 class NewsFetcher:
-    def __init__(self, num_threads=4):
+    def __init__(self, num_threads=1):
         self.tasks = Queue()
         self.initial_task_count = 0
         self.failures = Queue()
@@ -79,7 +79,7 @@ class NewsFetcher:
         [self.tasks.put(a) for a in np.articles]
         self.initial_task_count = self.tasks.qsize()
         self.failures = Queue()
-        workers = [Thread(target=self.work) for _ in range(self.num_threads-1)]
+        workers = [Thread(target=self.work) for _ in range(self.num_threads)]
         logger = Thread(target=self.progress)
         [t.start() for t in workers]
         logger.start()

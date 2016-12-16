@@ -12,12 +12,11 @@ import newspaper
 # local imports
 import config
 from article import Article
+from common import log
 from dbhelper import DBHelper
 from publisher import Publisher
 from newsfetcher import NewsFetcher
 
-def log(message):
-    print(message)
 
 class CorpusBuilder:
     def __init__(self, dbname):

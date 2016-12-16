@@ -13,9 +13,7 @@ import sqlite3
 # local imports
 from article import Article
 from publisher import Publisher
-
-def log(message):
-    print(message)
+from common import log
 
 class DBHelper:
     def __init__(self, dbname="corpus.sqlite", fts5_path="./fts5"):
@@ -84,6 +82,7 @@ class DBHelper:
                 return self.add_article(article)
             except Exception as e:
                 log(e)
+                log("retrying after backoff of {}".format(t))
                 time.sleep(t)
         return None
      
@@ -102,6 +101,11 @@ class DBHelper:
     def kwic(self, searchterm):
         print(searchterm)
         query = "SELECT highlight(search, 0, '<b>','</b>') from search where search match (?)"
+        res = self.execute_query(query, searchterm)
+        return res
+
+    def search(self, searchterm):
+        query = "SELECT url from search where search match (?)"
         res = self.execute_query(query, searchterm)
         return res
 
